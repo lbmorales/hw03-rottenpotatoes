@@ -12,6 +12,8 @@ class MoviesController < ApplicationController
 
   def index
     @movies = Movie.all
+    @order_column = params[:col]
+    @movies = @movies.order(@order_column.to_sym => :asc) if @order_column
   end
 
   def new
