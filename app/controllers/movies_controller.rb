@@ -1,5 +1,5 @@
+# Movies controller
 class MoviesController < ApplicationController
-
   def movie_params
     params.require(:movie).permit(:title, :rating, :description, :release_date)
   end
@@ -12,8 +12,14 @@ class MoviesController < ApplicationController
 
   def index
     @movies = Movie.all
+
+    @all_ratings = Movie.all_ratings_names # returns ratings names from db
+
+    params['ratings'] ? @checked_ratings = params['ratings'].keys : @checked_ratings = @all_ratings
+
     @order_column = params[:col]
     @movies = @movies.order(@order_column.to_sym => :asc) if @order_column
+    @movies = Movie.retrieve_checked_ratings(@checked_ratings) if params['ratings']
   end
 
   def new
@@ -43,5 +49,4 @@ class MoviesController < ApplicationController
     flash[:notice] = "Movie '#{@movie.title}' deleted."
     redirect_to movies_path
   end
-
 end
