@@ -1,8 +1,6 @@
 # Movies controller
 class MoviesController < ApplicationController
-  def movie_params
-    params.require(:movie).permit(:title, :rating, :description, :release_date)
-  end
+  # before_action :set_session, only: [:index]
 
   def show
     id = params[:id] # retrieve movie ID from URI route
@@ -11,15 +9,29 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @movies = Movie.all
+    if (!params[:ratings] && session[:checked_rating]) || (!params[:col] && session[:order_column])
+      new_params = {}
+      new_rating_params = Hash[session[:checked_rating].collect { |v| [v, '1'] }] if session[:checked_rating]
+      new_params[:ratings] = params.fetch(:ratings, new_rating_params)
+      new_params[:col] = params.fetch(:col, session[:order_column])
+      req_params = new_params.select { |k,v| v }
+      flash.keep(:notice)
+      redirect_to movies_path(req_params) unless req_params.empty?
+    end
 
-    @all_ratings = Movie.all_ratings_names # returns ratings names from db
+    ## filtering
+    @all_ratings = Movie.all_ratings_names
+    ratings_to_filter = params[:ratings].blank? ? @all_ratings : params[:ratings].keys
+    session[:checked_rating] = ratings_to_filter
 
-    params['ratings'] ? @checked_ratings = params['ratings'].keys : @checked_ratings = @all_ratings
+    ## ordering
+    session[:order_column] = params[:col] unless params[:col].blank?
 
-    @order_column = params[:col]
-    @movies = @movies.order(@order_column.to_sym => :asc) if @order_column
-    @movies = Movie.retrieve_checked_ratings(@checked_ratings) if params['ratings']
+    #### to send to the view
+    @movies = Movie.where(rating: session[:checked_rating])
+    @movies = @movies.order(session[:order_column].to_sym => :asc) if session[:order_column]
+    @checked_ratings = session[:checked_rating]
+    @order_column = session[:order_column]
   end
 
   def new
@@ -49,4 +61,13 @@ class MoviesController < ApplicationController
     flash[:notice] = "Movie '#{@movie.title}' deleted."
     redirect_to movies_path
   end
+
+  private
+
+  def movie_params
+    params.require(:movie).permit(:title, :rating, :description, :release_date)
+  end
+
+  # def set_session
+  # end
 end
